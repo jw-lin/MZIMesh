@@ -491,7 +491,7 @@ class Mesh(MZI):
         this class will compute the corresponding global optical transformation.
     """
 
-    mziorder = "diagonal" # can also be "column"
+    mziorder = "column" # can also be "diagonal" for triangular meshes
 
     def __init__(self,connectivity:list,XT=0.0):
         """ 
@@ -514,9 +514,10 @@ class Mesh(MZI):
         self.Nmzis = len(self.mzimeshflat)
         self.Nshifters = len(self.mzimeshflat) * 2
 
-        self.diagonal_order = self.get_diagonal_order()
+        self.diagonal_order = None
 
         if self.mziorder == "diagonal":
+            self.diagonal_order = self.get_diagonal_order()
             # resort
             self.mzimeshflat = [self.mzimeshflat[i] for i in self.diagonal_order]
         
@@ -1667,5 +1668,8 @@ class Mesh(MZI):
             writer.writerows(voltage_settings)
 
 class TriMesh(Mesh):
+    
+    mziorder = "diagonal"
+
     def __init__(self,N):
         super().__init__(trimesh_connectivity(N))
