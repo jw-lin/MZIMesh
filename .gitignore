@@ -2,3 +2,4 @@
 build/
 src/MZIMesh.egg-info
 src/voltage_setting_files/*
+AstroPIC/__pycachec__/
