@@ -1,0 +1,4 @@
+.vscode/
+build/
+src/MZIMesh.egg-info
+src/voltage_setting_files/*
