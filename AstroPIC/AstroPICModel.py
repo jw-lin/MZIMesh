@@ -6,12 +6,14 @@ from MZIMesh.UnitaryMatrices import circ,DFT
 from MZIMesh.MZI import TriMesh
 from ShifterCals import allphirs,allthetas
 from PhiBiasCalculator import solve_for_phi0s
+import numpy as np
 
 ########################
 ### matrix to upload ###
 ########################
 
-NU = 6  # dim of desired optical transformation
+NU = 2  # dim of desired optical transformation
+
 
 #U = np.identity(NU)
 #U = DFT(NU)
@@ -29,7 +31,12 @@ mmesh = TriMesh(N)
 ##############################
 
 Nrows = NU - 1
-allphis = solve_for_phi0s(allphirs)
+
+# we need to solve for the real phi bias values
+# in only the top rows which apply the matrix
+mzi_ixs = mmesh.get_top_row_ixs(Nrows)
+allphis = solve_for_phi0s(allphirs,mzi_ixs=mzi_ixs)
+
 mmesh.load_cal_top_Nrows(Nrows,allphis,allthetas)
 
 ###############################
