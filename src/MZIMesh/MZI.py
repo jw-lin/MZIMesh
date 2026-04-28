@@ -5,7 +5,6 @@ from matplotlib.widgets import Slider, Button
 from itertools import combinations
 from matplotlib import rcParams
 from MZIMesh.UnitaryMatrices import get_mesh_config
-from MZIMesh.PhiBiasCalculator import solve_for_phi0s
 import csv
 
 if 'left' in rcParams['keymap.back']:
@@ -1642,11 +1641,11 @@ class Mesh(MZI):
         data = self.multisweep([2*mzi_ix,2*mzi_ix+1],scanres)
         return data
 
-    def load_cal_top_Nrows(self,Nrows,allphirs,allthetas):
+    def load_cal_top_Nrows(self,Nrows,allphis,allthetas):
         ixs = self.get_top_row_ixs(Nrows)
         print("loading shifter bias data for mzis "+str(ixs)[1:-1])
         theta0s = allthetas[ixs]
-        phi0s = solve_for_phi0s(allphirs[ixs])
+        phi0s = allphis[ixs]
 
         for j,i in enumerate(ixs):
             self[i].phi0 = phi0s[j]

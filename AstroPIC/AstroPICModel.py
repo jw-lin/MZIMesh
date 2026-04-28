@@ -5,6 +5,7 @@
 from MZIMesh.UnitaryMatrices import circ,DFT
 from MZIMesh.MZI import TriMesh
 from ShifterCals import allphirs,allthetas
+from PhiBiasCalculator import solve_for_phi0s
 
 ########################
 ### matrix to upload ###
@@ -28,7 +29,8 @@ mmesh = TriMesh(N)
 ##############################
 
 Nrows = NU - 1
-mmesh.load_cal_top_Nrows(Nrows,allphirs,allthetas)
+allphis = solve_for_phi0s(allphirs)
+mmesh.load_cal_top_Nrows(Nrows,allphis,allthetas)
 
 ###############################
 ### compute & load voltages ###
