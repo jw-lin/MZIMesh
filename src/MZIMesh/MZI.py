@@ -129,7 +129,7 @@ class MZI:
     # the allowable voltages are assumed to be in discrete steps
     # of size max_voltage / 2^DAC_bit_depth
     # idk how real DACs work lol
-    DAC_bit_depth = 12
+    DAC_bit_depth = 20
     max_voltage = np.sqrt(4 * np.pi) # 2 cycles for voltage_sq_to_phase = 1
     actuation_noise = 0.0 # volts, corresponds to gaussian sigma on output voltage
 
@@ -242,7 +242,8 @@ class MZI:
         self.dg2 = dg2
     
     def realistic_phase(self,V):
-        # with crosstalk
+        # is the nonlinear term also supposed to go into crosstalk?? for now it's not
+        # seems like that would be fourth order or something
         x = np.power(V,2)/self.v2r_R
         return self._B @ (self.v2r_B * x) + (self.v2r_C * np.power(x,2)) + self.phase0
     
@@ -258,9 +259,6 @@ class MZI:
 
     def compute_phase(self,_set=True):
         if self.realistic_volts2rads:
-            x = np.power(self.V,2)/self.v2r_R
-            # is the nonlinear term also supposed to go into crosstalk?? for now it's not
-            # seems like that would be fourth order or something
             phi,theta = self.realistic_phase(self.V)
         else:
             phi,theta = self._B @ np.power(self.V,2) + self.phase0
@@ -283,7 +281,11 @@ class MZI:
     def compute_A4(self):
         return np.array([[np.exp(1.j*self.theta),0.],[0.,1.]],dtype=self.dtype)
     
-    def zero(self):
+    def set_0V(self):
+        self.Vphi = 0
+        self.Vtheta = 0
+
+    def zero_params(self):
         self.dg1 = 0.
         self.dg2 = 0.
         self.phi0 = 0.
@@ -447,7 +449,8 @@ class MZI:
         """ compute voltage value to achieve phi phase shift (modulo 2 pi), ignoring crosstalk 
             sln via quadratic formula
         """
-        phi -= np.floor((phi-self.phi0)/(2*np.pi))*2*np.pi
+        if self.modulo:
+            phi -= np.floor((phi-self.phi0)/(2*np.pi))*2*np.pi
         if self.realistic_volts2rads:
             x = (np.sqrt(self.v2r_B**2 + 4*self.v2r_C*(phi-self.phi0)) - self.v2r_B)/(2*self.v2r_C)
             if x < 0:
@@ -459,23 +462,22 @@ class MZI:
                 phi += 2*np.pi
             return np.sqrt((phi-self.phi0)/self.voltagesq_to_phase)
 
-    def theta2Vtheta(self,theta,theta0=None):
+    def theta2Vtheta(self,theta):
         """ compute voltage value to achieve phi phase shift (modulo 2 pi), ignoring crosstalk 
             sln via quadratic formula
         """
-        theta0 = self.theta0 if theta0 is None else theta0
         if self.modulo:
-            theta -= np.floor((theta-theta0)/(2*np.pi))*2*np.pi
+            theta -= np.floor((theta-self.theta0)/(2*np.pi))*2*np.pi
         if self.realistic_volts2rads:
-            x = (np.sqrt(self.v2r_B**2 + 4*self.v2r_C*(theta-theta0)) - self.v2r_B)/(2*self.v2r_C)
+            x = (np.sqrt(self.v2r_B**2 + 4*self.v2r_C*(theta-self.theta0)) - self.v2r_B)/(2*self.v2r_C)
             if x < 0:
                 print("no sln found")
                 return np.nan
             return np.sqrt(x*self.v2r_R)
         else:
-            while theta-theta0 <0:
+            while theta-self.theta0 <0:
                 theta += 2*np.pi
-            return np.sqrt((theta-theta0)/self.voltagesq_to_phase)
+            return np.sqrt((theta-self.theta0)/self.voltagesq_to_phase)
 
     def expected_null_voltage(self,order=0):
         """ compute the voltage setting corresponding to 
@@ -485,14 +487,13 @@ class MZI:
 
 class Mesh(MZI):
     """ class for simulating meshes of MZIs. the mesh structure is saved 
-        as a nested list of (i,j) tuples, where each tuple corresponds to an MZI
-        interfering channels i and j. individual MZIs may be actuated or tuned, 
-        this class will compute the corresponding global optical transformation.
+        as a flattened list of individual MZIs; the flattening order is controlled
+        by the 'mziorder' parameter.
     """
 
     mziorder = "column" # can also be "diagonal" for triangular meshes
 
-    def __init__(self,connectivity:list,XT=0.0):
+    def __init__(self,connectivity:list):
         """ 
         ARGS:
             connectivity: a potentially nested list of 2-element tuples.
@@ -500,8 +501,6 @@ class Mesh(MZI):
                 each element of connectivity is a column in the mesh, which may be a
                 single MZI or multiple (but a channel should not be interfered more than 
                 once per column.)
-            XT: crosstalk amount, as in the MZI class. for now, all pairs of shifters
-                are assumed to have the same crosstalk.
         """
 
         self.mzimeshflat = []
@@ -520,8 +519,8 @@ class Mesh(MZI):
             # resort
             self.mzimeshflat = [self.mzimeshflat[i] for i in self.diagonal_order]
         
-        self._XT = XT
-        self._B = make_simple_XT_matrix(self.Nshifters,XT) * self.voltagesq_to_phase
+        self._XT = 0.0 # start at 0 crosstalk
+        self._B = make_simple_XT_matrix(self.Nshifters,self._XT) * self.voltagesq_to_phase
 
         # array of transfer matrices for column of the mesh
         self.Acols = np.repeat(np.identity(self.Nchannels,dtype=self.dtype)[None,:,:],self.Ncols,axis=0)
@@ -1331,7 +1330,7 @@ class Mesh(MZI):
 
             _curidx = mzitracker.idx
             for i in range(self.Nmzis):
-                self[i].zero()
+                self[i].zero_params()
                 mzitracker.idx = i
                 
             if XTmode=="advanced":
@@ -1606,7 +1605,7 @@ class Mesh(MZI):
         return out
     
     def set_bar(self):
-        """ load bar state, without touching phi phase shifters. this perfect knowledge of phase bias, but neglects XT """
+        """ load bar state, without touching phi phase shifters. this assumes perfect knowledge of phase bias, but neglects XT """
         phis,thetas = get_mesh_config(np.identity(self.Nchannels)) # these are arranged in diagonal order
         for i,t in enumerate(thetas):
             if self.mziorder == "diagonal":
