@@ -152,9 +152,9 @@ class MZI:
 
     # voltage to phase mapping
     realistic_volts2rads = True
-    v2r_B = 197.3384152262288 # linear
-    v2r_C = -365.0693897652933 # quad
-    v2r_R = 818.1419041173418 # resistance
+    v2r_B = 8.24121199e+01# linear
+    v2r_C = -4.25679577e+01 # quad
+    v2r_R = 350.0 # resistance
     maxV = 6.0 # maximum voltage
 
     modulo = True
