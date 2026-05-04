@@ -445,39 +445,45 @@ class MZI:
         else:
             return pows
     
-    def phi2Vphi(self,phi):
+    def phi2Vphi(self,phi,phi0=None):
         """ compute voltage value to achieve phi phase shift (modulo 2 pi), ignoring crosstalk 
             sln via quadratic formula
         """
         if self.modulo:
             phi -= np.floor((phi-self.phi0)/(2*np.pi))*2*np.pi
+        
+        phi0 = phi0 if phi0 is not None else self.phi0
+
         if self.realistic_volts2rads:
-            x = (np.sqrt(self.v2r_B**2 + 4*self.v2r_C*(phi-self.phi0)) - self.v2r_B)/(2*self.v2r_C)
+            x = (np.sqrt(self.v2r_B**2 + 4*self.v2r_C*(phi-phi0)) - self.v2r_B)/(2*self.v2r_C)
             if x < 0:
                 print("no sln found")
                 return np.nan
             return np.sqrt(self.v2r_R*x)
         else:
-            while phi-self.phi0 <0:
+            while phi-phi0 <0:
                 phi += 2*np.pi
-            return np.sqrt((phi-self.phi0)/self.voltagesq_to_phase)
+            return np.sqrt((phi-phi0)/self.voltagesq_to_phase)
 
-    def theta2Vtheta(self,theta):
+    def theta2Vtheta(self,theta,theta0=None):
         """ compute voltage value to achieve phi phase shift (modulo 2 pi), ignoring crosstalk 
             sln via quadratic formula
         """
         if self.modulo:
             theta -= np.floor((theta-self.theta0)/(2*np.pi))*2*np.pi
+
+        theta0 = theta0 if theta0 is not None else self.theta0
+
         if self.realistic_volts2rads:
-            x = (np.sqrt(self.v2r_B**2 + 4*self.v2r_C*(theta-self.theta0)) - self.v2r_B)/(2*self.v2r_C)
+            x = (np.sqrt(self.v2r_B**2 + 4*self.v2r_C*(theta-theta0)) - self.v2r_B)/(2*self.v2r_C)
             if x < 0:
                 print("no sln found")
                 return np.nan
             return np.sqrt(x*self.v2r_R)
         else:
-            while theta-self.theta0 <0:
+            while theta-theta0 <0:
                 theta += 2*np.pi
-            return np.sqrt((theta-self.theta0)/self.voltagesq_to_phase)
+            return np.sqrt((theta-theta0)/self.voltagesq_to_phase)
 
     def expected_null_voltage(self,order=0):
         """ compute the voltage setting corresponding to 
