@@ -152,8 +152,8 @@ class MZI:
 
     # voltage to phase mapping
     realistic_volts2rads = True
-    v2r_B = 0.235# linear
-    v2r_C = -3e-4 # quad
+    _v2r_B = 0.235# linear; default val
+    _v2r_C = -3e-4 # quad; default val
     maxV = 6.0 # maximum voltage
 
     modulo = True
@@ -215,6 +215,10 @@ class MZI:
         self._Vthetabar = None
         self._Vthetacross = None
 
+        # voltage-angle coeffs (phi,theta order)
+        self.v2r_B = np.array([self._v2r_B]*2)
+        self.v2r_C = np.array([self._v2r_C]*2)
+
     def set_bar(self):
         assert self._Vthetabar is not None
         self.Vtheta = self._Vthetabar
@@ -249,12 +253,12 @@ class MZI:
     def realistic_phi(self,Vphi):
         # without crosstalk
         x = np.power(Vphi,2)
-        return self.v2r_B * x + (self.v2r_C * np.power(x,2)) + self.phase0[0]
+        return self.v2r_B[0] * x + (self.v2r_C[0] * np.power(x,2)) + self.phase0[0]
 
     def realistic_theta(self,Vtheta):
         # without crosstalk
         x = np.power(Vtheta,2)
-        return self.v2r_B * x + (self.v2r_C * np.power(x,2)) + self.phase0[1]
+        return self.v2r_B[1] * x + (self.v2r_C[1] * np.power(x,2)) + self.phase0[1]
 
     def compute_phase(self,_set=True):
         if self.realistic_volts2rads:
@@ -456,7 +460,7 @@ class MZI:
         phi0 = phi0 if phi0 is not None else self.phi0
 
         if self.realistic_volts2rads:
-            x = (np.sqrt(self.v2r_B**2 + 4*self.v2r_C*(phi-phi0)) - self.v2r_B)/(2*self.v2r_C)
+            x = (np.sqrt(self.v2r_B[0]**2 + 4*self.v2r_C[0]*(phi-phi0)) - self.v2r_B[0])/(2*self.v2r_C[0])
             if x < 0:
                 print("no sln found")
                 return np.nan
@@ -476,7 +480,7 @@ class MZI:
         theta0 = theta0 if theta0 is not None else self.theta0
 
         if self.realistic_volts2rads:
-            x = (np.sqrt(self.v2r_B**2 + 4*self.v2r_C*(theta-theta0)) - self.v2r_B)/(2*self.v2r_C)
+            x = (np.sqrt(self.v2r_B[1]**2 + 4*self.v2r_C[1]*(theta-theta0)) - self.v2r_B[1])/(2*self.v2r_C[1])
             if x < 0:
                 print("no sln found")
                 return np.nan
@@ -540,6 +544,9 @@ class Mesh(MZI):
 
         self._scannedchannel = None
         self._savedstate = None
+
+        self.v2r_B = np.array([self._v2r_B]*self.Nshifters)
+        self.v2r_C = np.array([self._v2r_C]*self.Nshifters)
 
     def get_state(self):
         global_state = []
