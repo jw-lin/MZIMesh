@@ -419,16 +419,17 @@ class MZI:
 
     #endregion
 
-    def prop(self,u):
+    def prop(self,u=None):
         """ propagate the complex electric field, represented by the two-element vector u, through the MZI 
         Args:
             u (np.ndarray): electric field vector at mesh input, may be complex
         Returns:
             (np.ndarray): complex-valued output electric field vector
         """
+        u = self.u if u is None else u
         return self.A @ u
     
-    def measure(self,u):
+    def measure(self,u=None):
         """ measure the output intensity for a given input field vector u. accounts for 
         photon noise if MZI.Nphot > 0
 
@@ -437,6 +438,7 @@ class MZI:
         Returns:
             (np.ndarray): real nonnegative output intensity vector
         """
+        u = self.u if u is None else u
         amps = self.prop(u)
         pows = np.power(np.abs(amps),2)
         if self.Nphot != 0:
@@ -679,6 +681,9 @@ class Mesh(MZI):
         return np.linalg.multi_dot(self.Acols)
     
     #endregion
+
+    def set_launch_field(self,launch):
+        self.u = self.make_launch_field(launch)
 
     def noiseless_measure(self,u):
         if self.DACsim:
