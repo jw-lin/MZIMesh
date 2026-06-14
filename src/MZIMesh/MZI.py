@@ -152,9 +152,8 @@ class MZI:
 
     # voltage to phase mapping
     realistic_volts2rads = True
-    v2r_B = 8.24121199e+01# linear
-    v2r_C = -4.25679577e+01 # quad
-    v2r_R = 350.0 # resistance
+    v2r_B = 0.235# linear
+    v2r_C = -3e-4 # quad
     maxV = 6.0 # maximum voltage
 
     modulo = True
@@ -244,17 +243,17 @@ class MZI:
     def realistic_phase(self,V):
         # is the nonlinear term also supposed to go into crosstalk?? for now it's not
         # seems like that would be fourth order or something
-        x = np.power(V,2)/self.v2r_R
+        x = np.power(V,2)
         return self._B @ (self.v2r_B * x) + (self.v2r_C * np.power(x,2)) + self.phase0
     
     def realistic_phi(self,Vphi):
         # without crosstalk
-        x = np.power(Vphi,2)/self.v2r_R
+        x = np.power(Vphi,2)
         return self.v2r_B * x + (self.v2r_C * np.power(x,2)) + self.phase0[0]
 
     def realistic_theta(self,Vtheta):
         # without crosstalk
-        x = np.power(Vtheta,2)/self.v2r_R
+        x = np.power(Vtheta,2)
         return self.v2r_B * x + (self.v2r_C * np.power(x,2)) + self.phase0[1]
 
     def compute_phase(self,_set=True):
@@ -461,7 +460,7 @@ class MZI:
             if x < 0:
                 print("no sln found")
                 return np.nan
-            return np.sqrt(self.v2r_R*x)
+            return np.sqrt(x)
         else:
             while phi-phi0 <0:
                 phi += 2*np.pi
@@ -481,7 +480,7 @@ class MZI:
             if x < 0:
                 print("no sln found")
                 return np.nan
-            return np.sqrt(x*self.v2r_R)
+            return np.sqrt(x)
         else:
             while theta-theta0 <0:
                 theta += 2*np.pi
@@ -700,7 +699,7 @@ class Mesh(MZI):
         
         #technically this should only be called when V or B are changed to save time
         if self.realistic_volts2rads:
-            x = np.power(self.V,2)/self.v2r_R
+            x = np.power(self.V,2)
             self._truephases[:] = self.B @ (self.v2r_B * x) + (self.v2r_C * np.power(x,2)) + self.phase0
         else:
             self._truephases[:] = self.B @ np.power(self.V,2) + self.phase0
