@@ -964,11 +964,8 @@ class Mesh(MZI):
         return _input
 
     # probably the messiest function i've ever written lol
-    def live_plot(self,launch="flat",XTmode="simple",scanmode="shifter",maxV=None,minphase=None,maxphase=None,yscale="log",xscale="linear",fullscreen=False):
-        """ make an interactive plot, which shows the intensity output of the mesh as a function of different scans.
-            the scan is customizable via gui. there are two scanning modes. 
-            in <scanmode>="shifter", you may scan over phase shifter voltages, like is done in the lab.
-            in <scanmode>="field" you may scan over the PHASE of the electric field for an individual channel.
+    def live_plot(self,launch="flat",XTmode="simple",maxV=None,minphase=None,maxphase=None,yscale="log",xscale="linear",fullscreen=False):
+        """ make an interactive plot, which shows the intensity output of the mesh as a function of phaseshifter voltage scans.
             the starting launch field is set by <input>. for crosstalk, there are two options.
             in <XTmode>="simple", crosstalk is assumed uniform between all shifters.
             in <XTmode>="advanced", crosstalk may be different for each shifter pair. do not use this with
@@ -980,16 +977,12 @@ class Mesh(MZI):
                 if "flat", light is split evenly (and cophased) between input channels.
             XTmode: default 'simple', which assumes all cross terms are equal. 'advanced' 
                 also produces a XT matrix gui so cross terms can be adjusted individually
-            scanmode: default "shifter", which lets you scan over any phase shifter (or multiple in parallel).
-                if "field", you may scan the phase of the electric field in one input channel. you probably
-                want <input>="flat" with this mode. parallel scanning and amplitude scanning are not supported.
             maxV: max voltage for scans over voltage params (min is assumed 0)
             minphase,maxphase: min and max phases for scans over electric field phase.
             yscale: scaling for vertical axis of sweep plot. "log" or "linear"
         """
 
         assert XTmode in ["simple","advanced"], "XTmode must be 'simple' or 'advanced'"
-        assert scanmode in ["shifter","field"], "must scan over 'shifter' params or 'input' electric field"
 
         if XTmode == "advanced":
             assert self.Nmzis <= 10, "advanced XT gui only works for a small number of MZIs"
@@ -1169,17 +1162,14 @@ class Mesh(MZI):
         axselector.axis("off")
         ax.set_ylabel("normalized flux")
         # initial data
-        if scanmode == "shifter":
-            scan,output = adaptive_eval(maxV,minVstep)
-            ax.set_title("voltage scan result")
-            if xscale=="linear":
-                xlabel = ax.set_xlabel(r"$V$")
-            else:
-                xlabel = ax.set_xlabel(r"$V^2$")
+
+        scan,output = adaptive_eval(maxV,minVstep)
+        ax.set_title("voltage scan result")
+        if xscale=="linear":
+            xlabel = ax.set_xlabel(r"$V$")
         else:
-            scan,output = adaptive_eval_phase(minphase,maxphase,minphasestep)
-            ax.set_title("input scan result")
-            xlabel = ax.set_xlabel("phase, channel "+str(scannedinput))
+            xlabel = ax.set_xlabel(r"$V^2$")
+
         fig.subplots_adjust(bottom=0.5)
         
         fluxes = []
@@ -1192,12 +1182,10 @@ class Mesh(MZI):
         
         def plot_update():
             """update the righthand plot which shows chip output."""
-            if scanmode == "shifter":
-                scan,output = adaptive_eval(maxV,minVstep)
-                if xscale=="quad":
-                    scan = np.power(scan,2)
-            else:
-                scan,output = adaptive_eval_phase(minphase,maxphase,minphasestep)
+
+            scan,output = adaptive_eval(maxV,minVstep)
+            if xscale=="quad":
+                scan = np.power(scan,2)
 
             for i in range(self.Nchannels):
                 fluxes[i].set_xdata(scan)
@@ -1297,15 +1285,18 @@ class Mesh(MZI):
         def channellineonpick(event):
             """this function lets you select channels to scan electric field phase over,
             by clicking the channel lines on the top left GUI."""
-            if hasattr(event.artist,"channelidx") and scanmode=="field":
+            nonlocal input
+            if hasattr(event.artist,"channelidx"):
                 for l in channel_lines:
                     l.set_linewidth(1.5)
                 if self._scannedchannel == event.artist.channelidx:
                     self._scannedchannel = None
+                    input = self.make_launch_field("flat")
                 else:
                     self._scannedchannel = event.artist.channelidx
                     channel_lines[event.artist.channelidx].set_linewidth(3.)
-                xlabel.set_text("phase, channel "+str(self._scannedchannel))
+                    input = self.make_launch_field(self._scannedchannel)
+                #xlabel.set_text("phase, channel "+str(self._scannedchannel))
                 plot_update()
 
         fig.canvas.mpl_connect('pick_event', channellineonpick)
@@ -1403,11 +1394,10 @@ class Mesh(MZI):
         
         clearbutton.on_clicked(clearfunc)
 
-        if scanmode=="shifter":
-            scanphi_button_ax = fig.add_axes([buttonx, 0.15, 0.04, 0.04])
-            scantheta_button_ax = fig.add_axes([buttonx, 0.1, 0.04, 0.04])
-            scanphi_button = Button(scanphi_button_ax, 'scan', hovercolor='0.975')
-            scanptheta_button = Button(scantheta_button_ax, 'scan', hovercolor='0.975')
+        scanphi_button_ax = fig.add_axes([buttonx, 0.15, 0.04, 0.04])
+        scantheta_button_ax = fig.add_axes([buttonx, 0.1, 0.04, 0.04])
+        scanphi_button = Button(scanphi_button_ax, 'scan', hovercolor='0.975')
+        scanptheta_button = Button(scantheta_button_ax, 'scan', hovercolor='0.975')
 
         def reset_func(mouse_event):
             """this function resets all mesh parameters to their starting value"""
@@ -1530,9 +1520,8 @@ class Mesh(MZI):
             plot_update()
 
         reset_button.on_clicked(reset_func)
-        if scanmode=="shifter":
-            scanphi_button.on_clicked(rescanphi_func)
-            scanptheta_button.on_clicked(rescantheta_func)
+        scanphi_button.on_clicked(rescanphi_func)
+        scanptheta_button.on_clicked(rescantheta_func)
 
         def supdate(slider,paramname):
             def _inner_(val):
@@ -1688,3 +1677,9 @@ class TriMesh(Mesh):
 
     def __init__(self,N):
         super().__init__(trimesh_connectivity(N))
+
+
+### testing
+if __name__=="__main__":
+    m = TriMesh(2)
+    m.live_plot()
