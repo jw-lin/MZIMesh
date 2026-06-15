@@ -545,9 +545,6 @@ class Mesh(MZI):
         self._scannedchannel = None
         self._savedstate = None
 
-        self.v2r_B = np.array([self._v2r_B]*self.Nshifters)
-        self.v2r_C = np.array([self._v2r_C]*self.Nshifters)
-
     def get_state(self):
         global_state = []
         for m in self:
@@ -606,6 +603,13 @@ class Mesh(MZI):
         return ixs
 
     #region mesh properties
+    @property
+    def v2r_B(self):
+        return np.array([_B for m in self for _B in m.v2r_B])
+    
+    @property
+    def v2r_C(self):
+        return np.array([_C for m in self for _C in m.v2r_C])
 
     @property
     def realistic_volts2rads(self):
@@ -1681,5 +1685,9 @@ class TriMesh(Mesh):
 
 ### testing
 if __name__=="__main__":
-    m = TriMesh(2)
+    m = TriMesh(3)
+    #m.set_random_params(sdg=0.1)
+    print(m.v2r_B)
+    print(m.v2r_C)
+
     m.live_plot()
