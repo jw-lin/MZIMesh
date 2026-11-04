@@ -713,6 +713,12 @@ class Mesh(MZI):
 
     def compute_phase(self):
         """ read all the voltages on the mesh and compute the corresponding phases """
+
+        if self.bypassV:
+            for i,mzi in enumerate(self):
+                self._truephases[2*i] = mzi.phi+mzi.phi0
+                self._truephases[2*i+1] = mzi.theta+mzi.theta0
+            return self._truephases
         
         #technically this should only be called when V or B are changed to save time
         if self.realistic_volts2rads:
