@@ -156,7 +156,11 @@ class MZI:
     _v2r_C = -3e-4 # quad; default val
     maxV = 6.0 # maximum voltage
 
+    # 2-pi wrap angles
     modulo = True
+
+    # skip voltage calculations, directly input phases into the mesh
+    bypassV = False
 
     def __init__(self,XT=0,phi0=0,theta0=0,dg1=0,dg2=0,port0ix=0,port1ix=1,colix=0):
         """ a more realistic 2x2 mzi.
@@ -247,6 +251,8 @@ class MZI:
     def realistic_phase(self,V):
         # is the nonlinear term also supposed to go into crosstalk?? for now it's not
         # seems like that would be fourth order or something
+        if self.bypassV:
+            return np.array([self.phi,self.theta])+self.phase0
         x = np.power(V,2)
         return self._B @ (self.v2r_B * x) + (self.v2r_C * np.power(x,2)) + self.phase0
     
@@ -265,7 +271,7 @@ class MZI:
             phi,theta = self.realistic_phase(self.V)
         else:
             phi,theta = self._B @ np.power(self.V,2) + self.phase0
-        if _set:
+        if _set and not self.bypassV:
             self.phi = phi
             self.theta = theta
         return phi,theta
